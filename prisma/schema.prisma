@@ -5,10 +5,129 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AppRole {
+  ADMIN
+  USER
+}
+
+enum JobStatus {
+  SAVED
+  APPLIED
+  INTERVIEWING
+  OFFER
+  REJECTED
+  ARCHIVED
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  INTERNSHIP
+  CONTRACT
+  FREELANCE
+  REMOTE
+  HYBRID
+  ONSITE
+}
+
+enum ReminderType {
+  FOLLOW_UP
+  INTERVIEW
+  DEADLINE
+  CUSTOM
+}
+
+model Profile {
+  id        String   @id
+  email     String   @unique
+  fullName  String?
+  avatarUrl String?
+  role      AppRole  @default(USER)
+  isBlocked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jobs      JobApplication[]
+  reminders Reminder[]
+
+  @@map("profiles")
+  @@index([role])
+  @@index([isBlocked])
+}
+
+model JobSource {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  slug        String           @unique
+  description String?
+  isActive    Boolean          @default(true)
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  jobs        JobApplication[]
+
+  @@map("job_sources")
+  @@index([isActive, sortOrder])
+}
+
+model JobApplication {
+  id          String    @id @default(cuid())
+  userId      String
+  companyName String
+  jobTitle    String
+  jobUrl      String?
+  location    String?
+  salaryRange String?
+  jobType     JobType?
+  sourceId    String?
+  status      JobStatus @default(SAVED)
+  appliedDate DateTime?
+  deadline    DateTime?
+  description String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user      Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source    JobSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  reminders Reminder[]
+
+  @@map("job_applications")
+  @@index([userId, createdAt])
+  @@index([userId, status])
+  @@index([userId, sourceId])
+  @@index([userId, jobType])
+  @@index([companyName])
+  @@index([jobTitle])
+}
+
+model Reminder {
+  id               String       @id @default(cuid())
+  userId           String
+  jobApplicationId String?
+  title            String
+  reminderDate     DateTime
+  type             ReminderType @default(CUSTOM)
+  isCompleted      Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  user           Profile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobApplication JobApplication? @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+
+  @@map("reminders")
+  @@index([userId, reminderDate])
+  @@index([userId, isCompleted])
+  @@index([jobApplicationId])
 }
