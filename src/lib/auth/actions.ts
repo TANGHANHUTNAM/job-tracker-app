@@ -2,13 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { setFlashToast } from "@/lib/toast-server";
 
 export type AuthResult = {
   error?: string;
+  success?: boolean;
+  redirectTo?: string;
 };
 
 async function getSiteUrl() {
@@ -104,7 +105,7 @@ export async function signUp(
     type: "success",
     message: "Đăng ký thành công. Vui lòng xác thực email trước khi đăng nhập.",
   });
-  redirect("/sign-in");
+  return { success: true, redirectTo: "/sign-in" };
 }
 
 export async function signIn(
@@ -146,11 +147,12 @@ export async function signIn(
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  return { success: true, redirectTo: "/dashboard" };
 }
 
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/sign-in");
+  revalidatePath("/", "layout");
+  return { success: true, redirectTo: "/sign-in" };
 }

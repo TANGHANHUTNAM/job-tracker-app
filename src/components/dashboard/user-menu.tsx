@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,7 +19,7 @@ interface UserMenuProps {
   email: string;
   role: "ADMIN" | "USER";
   fullName?: string | null;
-  signOutAction: () => void | Promise<void>;
+  signOutAction: () => void | Promise<{ success?: boolean; redirectTo?: string }>;
 }
 
 function getInitials(name?: string | null, email?: string) {
@@ -32,6 +34,15 @@ function getInitials(name?: string | null, email?: string) {
 }
 
 function UserMenu({ email, role, fullName, signOutAction }: UserMenuProps) {
+  const router = useRouter();
+
+  async function handleSignOut() {
+    const result = await signOutAction();
+    if (result && "redirectTo" in result && result.redirectTo) {
+      router.push(result.redirectTo);
+    }
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -55,7 +66,7 @@ function UserMenu({ email, role, fullName, signOutAction }: UserMenuProps) {
           </div>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <form action={signOutAction}>
+        <form action={handleSignOut}>
           <DropdownMenuItem render={<button type="submit" className="w-full" />}>Đăng xuất</DropdownMenuItem>
         </form>
       </DropdownMenuContent>

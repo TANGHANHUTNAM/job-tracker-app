@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Briefcase, Loader2 } from "lucide-react";
 import { signUp, type AuthResult } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
@@ -9,11 +10,18 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 
 export default function SignUpPage() {
+  const router = useRouter();
   const [state, formAction, isPending] = useActionState<AuthResult, FormData>(
     signUp,
     {}
   );
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+
+  useEffect(() => {
+    if (state.success && state.redirectTo) {
+      router.push(state.redirectTo);
+    }
+  }, [state.success, state.redirectTo, router]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     const formData = new FormData(event.currentTarget);
