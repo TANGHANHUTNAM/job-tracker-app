@@ -22,7 +22,7 @@ env:
   APP_NAME: job-app-tracker
   SERVER_HOST: ${{ secrets.SERVER_HOST }}
   SERVER_USER: ${{ secrets.SERVER_USER }}
-  DEPLOY_DIR: /opt/job-app-tracker
+  DEPLOY_DIR: /root/nit/job-tracker-app
 
 jobs:
   # ========================================
@@ -64,10 +64,17 @@ jobs:
 
       - run: npm ci
 
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://test:test@localhost:5432/test"
+          DIRECT_URL: "postgresql://test:test@localhost:5432/test"
+
       - name: Build
         run: npm run build
         env:
           DATABASE_URL: "postgresql://test:test@localhost:5432/test"
+          DIRECT_URL: "postgresql://test:test@localhost:5432/test"
           NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co"
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "test-key"
 

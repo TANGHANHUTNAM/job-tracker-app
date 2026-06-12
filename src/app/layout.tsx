@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Fraunces, Geist_Mono, Manrope } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -49,7 +50,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           {children}
-          <AppToaster />
+          <Suspense>
+            <AppToaster />
+          </Suspense>
         </ThemeProvider>
       </body>
     </html>
