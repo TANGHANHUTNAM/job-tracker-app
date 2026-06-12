@@ -133,7 +133,7 @@ jobs:
             max_wait=120
             while [ $elapsed -lt $max_wait ]; do
               if curl -sf http://127.0.0.1:3000/api/health > /dev/null 2>&1; then
-                echo "✅ Health check passed after ${elapsed}s"
+                echo "Health check passed after ${elapsed}s"
                 echo "=== Deploy complete ==="
                 exit 0
               fi
@@ -143,14 +143,14 @@ jobs:
             done
 
             echo ""
-            echo "❌ Health check failed"
+            echo "Health check failed"
             docker logs job-app-tracker --tail 30
             exit 1
 
       - name: Notify on success
         if: success()
-        run: echo "✅ Deployed successfully! Commit: ${{ github.sha }}"
+        run: echo "Deployed successfully! Commit ${{ github.sha }}"
 
       - name: Notify on failure
         if: failure()
-        run: echo "❌ Deploy failed! Check workflow logs."
+        run: echo "Deploy failed! Check workflow logs."
