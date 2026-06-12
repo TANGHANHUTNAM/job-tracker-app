@@ -41,3 +41,7 @@ next-env.d.ts
 /plans
 
 /src/generated/prisma
+
+# deployment secrets
+.env.production
+deploy/.env.production

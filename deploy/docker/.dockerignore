@@ -1,0 +1,55 @@
+# Dependencies
+node_modules
+
+# Build outputs
+.next
+out
+build
+dist
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Environment files (sensitive)
+.env
+.env.*
+!.env.example
+
+# Documentation
+README.md
+docs/
+plans/
+*.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+coverage
+__tests__
+*.test.*
+*.spec.*
+
+# Dev tools
+.agents
+skills-lock.json
+components.json
+eslint.config.mjs
+postcss.config.mjs
+tsconfig.json
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Deployment configs (not needed in image)
+deploy/
+
+# Prisma migrations (we use db push, not migrate)
+prisma/migrations

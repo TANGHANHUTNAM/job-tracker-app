@@ -1,0 +1,149 @@
+# ============================================================
+# GitHub Actions — CI/CD + Deploy via SSH
+# ============================================================
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: "Skip tests (emergency deploy)"
+        required: false
+        default: "false"
+        type: boolean
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  APP_NAME: job-app-tracker
+  SERVER_HOST: ${{ secrets.SERVER_HOST }}
+  SERVER_USER: ${{ secrets.SERVER_USER }}
+  DEPLOY_DIR: /opt/job-app-tracker
+
+jobs:
+  # ========================================
+  # Job 1: Lint & Type Check
+  # ========================================
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type Check
+        run: npx tsc --noEmit
+
+  # ========================================
+  # Job 2: Build & Test
+  # ========================================
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.skip_tests != 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          DATABASE_URL: "postgresql://test:test@localhost:5432/test"
+          NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co"
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "test-key"
+
+      # Add actual test commands here when tests exist
+      # - run: npm test
+
+  # ========================================
+  # Job 3: Deploy
+  # ========================================
+  deploy:
+    name: Deploy to Server
+    needs: [lint, test]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -Eeuo pipefail
+
+            APP_DIR="${{ env.DEPLOY_DIR }}"
+            COMPOSE_FILE="${APP_DIR}/deploy/docker/docker-compose.prod.yml"
+
+            echo "=== Deploy started ==="
+            echo "Commit: ${{ github.sha }}"
+            echo "Time: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+            cd "$APP_DIR"
+
+            # Pull latest code
+            echo "--- Pulling latest code ---"
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
+
+            # Build new image
+            echo "--- Building Docker image ---"
+            docker compose -f "$COMPOSE_FILE" build --no-cache app
+
+            # Recreate container
+            echo "--- Deploying container ---"
+            docker compose -f "$COMPOSE_FILE" up -d --force-recreate --no-deps app
+
+            # Health check
+            echo "--- Health check ---"
+            elapsed=0
+            max_wait=120
+            while [ $elapsed -lt $max_wait ]; do
+              if curl -sf http://127.0.0.1:3000/api/health > /dev/null 2>&1; then
+                echo "✅ Health check passed after ${elapsed}s"
+                echo "=== Deploy complete ==="
+                exit 0
+              fi
+              sleep 5
+              elapsed=$((elapsed + 5))
+              echo -n "."
+            done
+
+            echo ""
+            echo "❌ Health check failed"
+            docker logs job-app-tracker --tail 30
+            exit 1
+
+      - name: Notify on success
+        if: success()
+        run: echo "✅ Deployed successfully! Commit: ${{ github.sha }}"
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "❌ Deploy failed! Check workflow logs."
