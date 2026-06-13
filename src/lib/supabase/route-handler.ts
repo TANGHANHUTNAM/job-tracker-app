@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -22,11 +22,11 @@ export function createRouteHandlerClient(
           cookiesToSet: Array<{
             name: string;
             value: string;
-            options?: Record<string, unknown>;
+            options?: CookieOptions;
           }>,
         ) {
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options as any),
+            response.cookies.set(name, value, options),
           );
         },
       },
