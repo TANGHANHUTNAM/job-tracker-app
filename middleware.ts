@@ -6,9 +6,15 @@ const protectedRoutes = ["/dashboard", "/jobs", "/kanban", "/reminders", "/analy
 const authRoutes = ["/sign-in", "/sign-up"];
 
 export async function middleware(request: NextRequest) {
-  const supabaseResponse = await updateSession(request);
-
   const { pathname } = request.nextUrl;
+  const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
+  const isAuthPage = authRoutes.some((route) => pathname.startsWith(route));
+
+  if (!isProtected && !isAuthPage) {
+    return await updateSession(request);
+  }
+
+  const supabaseResponse = await updateSession(request);
 
   // Create a second client to check auth state after cookies are set
   const supabase = createServerClient(
@@ -28,8 +34,9 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  console.log(`[MW] ${pathname} | cookies=${request.cookies.size} | user=${user?.id ?? "null"}`);
+
   // Redirect unauthenticated users away from protected routes
-  const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
   if (isProtected && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";
@@ -37,7 +44,6 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from auth pages
-  const isAuthPage = authRoutes.some((route) => pathname.startsWith(route));
   if (isAuthPage && user) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
