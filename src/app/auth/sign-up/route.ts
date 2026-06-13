@@ -7,14 +7,11 @@ import {
   serializeFlashToast,
 } from "@/lib/toast";
 
-async function getSiteUrl(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  if (origin) return origin;
-
+function getSiteUrl(request: NextRequest): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
   const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  const protocol = request.headers.get("x-forwarded-proto") ?? "http";
-
-  return host ? `${protocol}://${host}` : null;
+  const proto = request.headers.get("x-forwarded-proto") ?? "https";
+  return host ? `${proto}://${host}` : "http://localhost:3000";
 }
 
 export async function POST(request: NextRequest) {
@@ -52,9 +49,7 @@ export async function POST(request: NextRequest) {
       data: {
         name: name || email.split("@")[0],
       },
-      ...(siteUrl
-        ? { emailRedirectTo: `${siteUrl}/auth/callback?next=/sign-in` }
-        : {}),
+      emailRedirectTo: `${siteUrl}/auth/callback?next=/sign-in`,
     },
   });
 
