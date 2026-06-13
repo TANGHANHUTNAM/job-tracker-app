@@ -18,8 +18,7 @@ async function getSiteUrl(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const cookieResponse = NextResponse.next();
-  const supabase = createRouteHandlerClient(request, cookieResponse);
+  const { supabase, applyCookies } = createRouteHandlerClient(request);
   const siteUrl = await getSiteUrl(request);
 
   const formData = await request.formData();
@@ -93,12 +92,9 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const finalResponse = NextResponse.json({ success: true, redirectTo: "/sign-in" });
-  const setCookie = cookieResponse.headers.get("Set-Cookie");
-  if (setCookie) {
-    finalResponse.headers.set("Set-Cookie", setCookie);
-  }
-  finalResponse.cookies.set(
+  const response = NextResponse.json({ success: true, redirectTo: "/sign-in" });
+  applyCookies(response);
+  response.cookies.set(
     FLASH_TOAST_COOKIE,
     serializeFlashToast({
       type: "success",
@@ -107,5 +103,5 @@ export async function POST(request: NextRequest) {
     }),
     flashToastCookieOptions,
   );
-  return finalResponse;
+  return response;
 }
