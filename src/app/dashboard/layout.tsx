@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Briefcase } from "lucide-react";
-import { signOut } from "@/lib/auth/actions";
 import { requireCurrentAccount } from "@/lib/auth/session";
 import { DashboardNav, type DashboardNavItem } from "@/components/dashboard/dashboard-nav";
 import { UserMenu } from "@/components/dashboard/user-menu";
@@ -40,7 +39,6 @@ export default async function DashboardLayout({
                 email={profile.email}
                 fullName={profile.fullName}
                 role={profile.role}
-                signOutAction={signOut}
               />
             </div>
           </div>

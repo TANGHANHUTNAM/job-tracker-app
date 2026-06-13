@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,6 @@ interface UserMenuProps {
   email: string;
   role: "ADMIN" | "USER";
   fullName?: string | null;
-  signOutAction: () => void | Promise<{ success?: boolean; redirectTo?: string }>;
 }
 
 function getInitials(name?: string | null, email?: string) {
@@ -33,13 +32,24 @@ function getInitials(name?: string | null, email?: string) {
   return source.slice(0, 2).toUpperCase();
 }
 
-function UserMenu({ email, role, fullName, signOutAction }: UserMenuProps) {
+function UserMenu({ email, role, fullName }: UserMenuProps) {
   const router = useRouter();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   async function handleSignOut() {
-    const result = await signOutAction();
-    if (result && "redirectTo" in result && result.redirectTo) {
-      router.push(result.redirectTo);
+    setIsSigningOut(true);
+    try {
+      const res = await fetch("/auth/sign-out", { method: "POST" });
+      const data = await res.json();
+      if (data.redirectTo) {
+        router.push(data.redirectTo);
+      } else {
+        router.push("/sign-in");
+      }
+    } catch {
+      router.push("/sign-in");
+    } finally {
+      setIsSigningOut(false);
     }
   }
 
@@ -66,9 +76,18 @@ function UserMenu({ email, role, fullName, signOutAction }: UserMenuProps) {
           </div>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <form action={handleSignOut}>
-          <DropdownMenuItem render={<button type="submit" className="w-full" />}>Đăng xuất</DropdownMenuItem>
-        </form>
+        <DropdownMenuItem
+          render={
+            <button
+              type="button"
+              className="w-full"
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+            />
+          }
+        >
+          {isSigningOut ? "Đang đăng xuất..." : "Đăng xuất"}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

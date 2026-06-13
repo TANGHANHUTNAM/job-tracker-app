@@ -1,46 +1,52 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Briefcase, Loader2 } from "lucide-react";
-import { signIn, type AuthResult } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 export default function SignInPage() {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState<AuthResult, FormData>(
-    signIn,
-    {}
-  );
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string>("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-  useEffect(() => {
-    if (state.success) {
-      router.push(state.redirectTo || "/dashboard");
-    }
-  }, [state.success, state.redirectTo, router]);
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     const formData = new FormData(event.currentTarget);
+
     const nextErrors: { email?: string; password?: string } = {};
     const email = (formData.get("email") as string | null)?.trim() ?? "";
     const password = (formData.get("password") as string | null)?.trim() ?? "";
 
-    if (!email) {
-      nextErrors.email = "Vui lòng nhập email.";
-    }
-
-    if (!password) {
-      nextErrors.password = "Vui lòng nhập mật khẩu.";
-    }
+    if (!email) nextErrors.email = "Vui lòng nhập email.";
+    if (!password) nextErrors.password = "Vui lòng nhập mật khẩu.";
 
     setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
-    if (Object.keys(nextErrors).length > 0) {
-      event.preventDefault();
+    setIsPending(true);
+    setError("");
+
+    try {
+      const res = await fetch("/auth/sign-in", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        setError(data.error);
+      } else if (data.redirectTo) {
+        router.push(data.redirectTo);
+      }
+    } catch {
+      setError("Không thể kết nối. Vui lòng thử lại.");
+    } finally {
+      setIsPending(false);
     }
   }
 
@@ -60,13 +66,13 @@ export default function SignInPage() {
           </p>
         </div>
 
-        {state.error && (
+        {error && (
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {state.error}
+            {error}
           </div>
         )}
 
-        <form action={formAction} className="space-y-4" onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="email">Email <span className="text-destructive">*</span></FieldLabel>
