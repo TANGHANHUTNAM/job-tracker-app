@@ -1,5 +1,4 @@
-import { type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 const protectedRoutes = ["/dashboard", "/jobs", "/kanban", "/reminders", "/analytics", "/settings"];
@@ -10,44 +9,52 @@ export async function middleware(request: NextRequest) {
   const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
   const isAuthPage = authRoutes.some((route) => pathname.startsWith(route));
 
-  if (!isProtected && !isAuthPage) {
-    return await updateSession(request);
-  }
+  let supabaseResponse = NextResponse.next({ request });
 
-  const supabaseResponse = await updateSession(request);
-
-  // Create a second client to check auth state after cookies are set
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return supabaseResponse.cookies.getAll();
+  try {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) =>
+              request.cookies.set(name, value)
+            );
+            supabaseResponse = NextResponse.next({ request });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            );
+          },
         },
-        setAll() {},
-      },
+      }
+    );
+
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    console.log(`[MW] ${pathname} | cookies=${request.cookies.size} | user=${user?.id ?? "null"} | error=${error?.message ?? "none"}`);
+
+    if (isProtected && !user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/sign-in";
+      return Response.redirect(url);
     }
-  );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  console.log(`[MW] ${pathname} | cookies=${request.cookies.size} | user=${user?.id ?? "null"}`);
-
-  // Redirect unauthenticated users away from protected routes
-  if (isProtected && !user) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/sign-in";
-    return Response.redirect(url);
-  }
-
-  // Redirect authenticated users away from auth pages
-  if (isAuthPage && user) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return Response.redirect(url);
+    if (isAuthPage && user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return Response.redirect(url);
+    }
+  } catch (e) {
+    console.error(`[MW] ERROR ${pathname}:`, e);
+    if (isProtected) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/sign-in";
+      return Response.redirect(url);
+    }
   }
 
   return supabaseResponse;
