@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { createRouteHandlerClient } from "@/lib/supabase/route-handler";
 
 export async function POST(request: NextRequest) {
-  const response = NextResponse.json({ success: false });
-  const supabase = createRouteHandlerClient(request, response);
+  const cookieResponse = NextResponse.next();
+  const supabase = createRouteHandlerClient(request, cookieResponse);
 
   const formData = await request.formData();
   const email = (formData.get("email") as string | null)?.trim().toLowerCase() ?? "";
@@ -45,5 +45,10 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  return NextResponse.json({ success: true, redirectTo: "/dashboard" });
+  const finalResponse = NextResponse.json({ success: true, redirectTo: "/dashboard" });
+  const setCookie = cookieResponse.headers.get("Set-Cookie");
+  if (setCookie) {
+    finalResponse.headers.set("Set-Cookie", setCookie);
+  }
+  return finalResponse;
 }
